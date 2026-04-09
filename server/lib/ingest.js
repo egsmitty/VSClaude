@@ -48,7 +48,8 @@ export async function fetchProfileData(req) {
   const client = await spotifyClient(req);
 
   // Fetch in parallel: top tracks (3 windows) + recently played + saved tracks
-  const [shortTerm, mediumTerm, longTerm, recentRes, savedRes] = await Promise.all([
+  // Use allSettled so a 403 on one endpoint doesn't kill the entire analysis
+  const [shortTerm, mediumTerm, longTerm, recentRes, savedRes] = await Promise.allSettled([
     client.get('/me/top/tracks', { params: { limit: 50, time_range: 'short_term' } }),
     client.get('/me/top/tracks', { params: { limit: 50, time_range: 'medium_term' } }),
     client.get('/me/top/tracks', { params: { limit: 50, time_range: 'long_term' } }),
@@ -56,13 +57,15 @@ export async function fetchProfileData(req) {
     client.get('/me/tracks', { params: { limit: 50 } }),
   ]);
 
+  const ok = (r) => r.status === 'fulfilled' ? r.value.data.items ?? [] : [];
+
   // Collect raw tracks, tagging source for dedup priority
   const rawTracks = [
-    ...shortTerm.data.items.map((t) => ({ track: t, source: 'top_short' })),
-    ...mediumTerm.data.items.map((t) => ({ track: t, source: 'top_medium' })),
-    ...longTerm.data.items.map((t) => ({ track: t, source: 'top_long' })),
-    ...recentRes.data.items.map((item) => ({ track: item.track, source: 'recent' })),
-    ...savedRes.data.items.map((item) => ({ track: item.track, source: 'saved' })),
+    ...ok(shortTerm).map((t) => ({ track: t, source: 'top_short' })),
+    ...ok(mediumTerm).map((t) => ({ track: t, source: 'top_medium' })),
+    ...ok(longTerm).map((t) => ({ track: t, source: 'top_long' })),
+    ...ok(recentRes).map((item) => ({ track: item.track, source: 'recent' })),
+    ...ok(savedRes).map((item) => ({ track: item.track, source: 'saved' })),
   ];
 
   // Deduplicate by spotifyId, keeping first occurrence (short-term has priority)
