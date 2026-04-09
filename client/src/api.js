@@ -6,13 +6,15 @@ function getToken() {
 
 async function request(path, options = {}) {
   const token = getToken();
+  const { headers: extraHeaders, ...restOptions } = options;
   const res = await fetch(`${BASE}${path}`, {
     credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { 'x-auth-token': token } : {}),
+      ...extraHeaders,
     },
-    ...options,
+    ...restOptions,
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || `Request failed: ${res.status}`);

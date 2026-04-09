@@ -10,12 +10,14 @@ export default function SuggestionCard({ track, selected, onSelect }) {
         <div className={`checkbox ${selected ? 'checked' : ''}`} />
       </div>
 
-      <img
-        src={track.albumArt || '/placeholder-art.png'}
-        alt={track.album}
-        className="album-art"
-        onError={(e) => { e.target.style.display = 'none'; }}
-      />
+      {track.albumArt && (
+        <img
+          src={track.albumArt}
+          alt={track.album}
+          className="album-art"
+          onError={(e) => { e.target.style.display = 'none'; }}
+        />
+      )}
 
       <div className="suggestion-info">
         <div className="suggestion-title">{track.title}</div>

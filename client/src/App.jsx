@@ -23,8 +23,12 @@ export default function App() {
 
   const handleSubmit = async (text) => {
     setUserText(text);
-    await runAnalysis(text);
-    await fetchSuggestions(text);
+    try {
+      await runAnalysis(text);
+      await fetchSuggestions(text);
+    } catch {
+      // errors are already shown via the error banner in AppContext
+    }
   };
 
   return (

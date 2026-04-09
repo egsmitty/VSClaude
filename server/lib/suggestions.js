@@ -4,39 +4,72 @@ import { getClient } from './claude.js';
 const MODEL = 'claude-sonnet-4-6';
 
 /**
- * Fetches 25 recommendation candidates from Spotify seeded by the user's top tracks.
- * Falls back to fewer seeds if the user has limited history.
+ * Builds search queries from the user's taste profile and top tracks.
+ * Uses genre tags and top artists as seeds instead of the deprecated /recommendations endpoint.
  */
-export async function fetchCandidates(req, topTracks) {
-  const client = await spotifyClient(req);
+async function searchCandidates(client, tasteProfile, topTracks) {
+  const candidates = [];
+  const seen = new Set();
 
-  // Use up to 5 seed tracks (Spotify's max)
-  const seeds = topTracks.slice(0, 5).map((t) => t.spotifyId).filter(Boolean);
-  if (seeds.length === 0) throw new Error('No seed tracks available for recommendations');
+  // Seed queries: top genres from profile + top artists from listening history
+  const genres = tasteProfile?.topGenres?.slice(0, 3) ?? [];
+  const artists = [...new Set(topTracks.slice(0, 5).map((t) => t.artist))];
 
-  const { data } = await client.get('/recommendations', {
-    params: {
-      seed_tracks: seeds.join(','),
-      limit: 25,
-    },
-  });
+  const queries = [
+    ...genres.map((g) => `genre:"${g}"`),
+    ...artists.map((a) => `artist:"${a}"`),
+  ].slice(0, 6); // cap at 6 queries
 
-  // Fetch artist genres for candidates
-  const artistIds = data.tracks.map((t) => t.artists?.[0]?.id).filter(Boolean);
-  const unique = [...new Set(artistIds)];
-  const genreMap = {};
+  for (const query of queries) {
+    try {
+      const { data } = await client.get('/search', {
+        params: { q: query, type: 'track', limit: 10 },
+      });
 
-  for (let i = 0; i < unique.length; i += 50) {
-    const batch = unique.slice(i, i + 50);
-    const { data: artistData } = await client.get('/artists', {
-      params: { ids: batch.join(',') },
-    });
-    for (const artist of artistData.artists ?? []) {
-      if (artist) genreMap[artist.id] = artist.genres ?? [];
+      for (const track of data.tracks?.items ?? []) {
+        if (track?.id && !seen.has(track.id)) {
+          seen.add(track.id);
+          candidates.push(track);
+        }
+      }
+    } catch {
+      // Skip failed queries — partial results are fine
     }
   }
 
-  return data.tracks.map((t) => ({
+  return candidates;
+}
+
+/**
+ * Fetches recommendation candidates via Spotify search.
+ * Falls back gracefully if profile genres are unavailable.
+ */
+export async function fetchCandidates(req, topTracks, tasteProfile) {
+  const client = await spotifyClient(req);
+
+  if (topTracks.length === 0) throw new Error('No listening history available for recommendations');
+
+  const rawTracks = await searchCandidates(client, tasteProfile, topTracks);
+
+  if (rawTracks.length === 0) throw new Error('No recommendation candidates found');
+
+  // Fetch artist genres for candidates
+  const artistIds = [...new Set(rawTracks.map((t) => t.artists?.[0]?.id).filter(Boolean))];
+  const genreMap = {};
+
+  for (let i = 0; i < artistIds.length; i += 50) {
+    const batch = artistIds.slice(i, i + 50);
+    try {
+      const { data } = await client.get('/artists', { params: { ids: batch.join(',') } });
+      for (const artist of data.artists ?? []) {
+        if (artist) genreMap[artist.id] = artist.genres ?? [];
+      }
+    } catch {
+      // Genres are non-critical
+    }
+  }
+
+  return rawTracks.map((t) => ({
     spotifyId: t.id,
     title: t.name,
     artist: t.artists?.[0]?.name ?? 'Unknown',
@@ -109,7 +142,6 @@ Respond with ONLY a valid JSON array — no markdown, no explanation:
 
   if (!Array.isArray(ranked)) throw new Error('Claude response was not an array');
 
-  // Merge Claude's annotations back onto the full candidate objects
   const candidateMap = Object.fromEntries(candidates.map((c) => [c.spotifyId, c]));
 
   return ranked
