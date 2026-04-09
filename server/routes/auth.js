@@ -65,12 +65,34 @@ router.get('/callback', async (req, res) => {
         console.error('Session save error:', err);
         return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}?error=session_save_failed`);
       }
-      res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}?auth=success`);
+      // Relay through localhost:3001 so the session cookie is set on `localhost`
+      // (Spotify forces 127.0.0.1 as redirect URI, but the client runs on localhost —
+      // different cookie domains. The relay copies the session across.)
+      res.redirect(`http://localhost:3001/api/auth/relay?sid=${req.sessionID}`);
     });
   } catch (err) {
     console.error('Spotify OAuth callback error:', err.response?.data || err.message);
     res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}?error=token_exchange_failed`);
   }
+});
+
+// Relay: copies session from 127.0.0.1 to localhost so the cookie domain matches the client
+router.get('/relay', (req, res) => {
+  const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
+  const { sid } = req.query;
+
+  if (!sid) return res.redirect(`${CLIENT_URL}?error=relay_failed`);
+
+  req.sessionStore.get(sid, (err, sessionData) => {
+    if (err || !sessionData?.spotifyTokens) {
+      return res.redirect(`${CLIENT_URL}?error=relay_failed`);
+    }
+    req.session.spotifyTokens = sessionData.spotifyTokens;
+    req.session.save((saveErr) => {
+      if (saveErr) return res.redirect(`${CLIENT_URL}?error=relay_failed`);
+      res.redirect(`${CLIENT_URL}?auth=success`);
+    });
+  });
 });
 
 // Logout: clear session tokens
