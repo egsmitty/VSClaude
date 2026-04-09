@@ -1,13 +1,14 @@
 import axios from 'axios';
+import { updateTokens } from './tokenStore.js';
 
 const SPOTIFY_TOKEN_URL = 'https://accounts.spotify.com/api/token';
 
 /**
  * Refreshes the Spotify access token if it has expired.
- * Mutates req.session.spotifyTokens with fresh values.
+ * Mutates req.spotifyTokens with fresh values.
  */
 export async function ensureFreshToken(req) {
-  const tokens = req.session?.spotifyTokens;
+  const tokens = req.spotifyTokens;
   if (!tokens) throw new Error('Not authenticated with Spotify');
 
   if (Date.now() < tokens.expiresAt - 30_000) {
@@ -32,13 +33,16 @@ export async function ensureFreshToken(req) {
     }
   );
 
-  req.session.spotifyTokens = {
+  const newTokens = {
     accessToken: data.access_token,
     refreshToken: data.refresh_token ?? tokens.refreshToken,
     expiresAt: Date.now() + data.expires_in * 1000,
   };
 
-  return data.access_token;
+  if (req.clientToken) updateTokens(req.clientToken, newTokens);
+  req.spotifyTokens = newTokens;
+
+  return newTokens.accessToken;
 }
 
 /**

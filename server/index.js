@@ -7,6 +7,7 @@ import spotifyRouter from './routes/spotify.js';
 import analyzeRouter from './routes/analyze.js';
 import suggestionsRouter from './routes/suggestions.js';
 import { getClient } from './lib/claude.js';
+import { getTokens } from './lib/tokenStore.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -32,6 +33,19 @@ app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
   if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
+});
+
+// Attach spotify tokens from x-auth-token header to every request
+app.use((req, res, next) => {
+  const clientToken = req.headers['x-auth-token'];
+  if (clientToken) {
+    const tokens = getTokens(clientToken);
+    if (tokens) {
+      req.spotifyTokens = tokens;
+      req.clientToken = clientToken;
+    }
+  }
   next();
 });
 

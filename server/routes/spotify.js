@@ -5,7 +5,7 @@ const router = Router();
 
 // Middleware: require Spotify auth
 function requireAuth(req, res, next) {
-  if (!req.session?.spotifyTokens?.accessToken) {
+  if (!req.spotifyTokens?.accessToken) {
     return res.status(401).json({ error: 'Not authenticated with Spotify' });
   }
   next();

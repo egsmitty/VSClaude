@@ -1,9 +1,17 @@
-const BASE = import.meta.env.VITE_API_BASE_URL || '';
+const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+
+function getToken() {
+  return sessionStorage.getItem('authToken') || '';
+}
 
 async function request(path, options = {}) {
+  const token = getToken();
   const res = await fetch(`${BASE}${path}`, {
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { 'x-auth-token': token } : {}),
+    },
     ...options,
   });
   const data = await res.json();
@@ -13,7 +21,10 @@ async function request(path, options = {}) {
 
 export const api = {
   authStatus: () => request('/api/auth/status'),
-  logout: () => request('/api/auth/logout'),
+  logout: () => {
+    sessionStorage.removeItem('authToken');
+    return request('/api/auth/logout');
+  },
 
   analyze: (userText) =>
     request('/api/analyze', {
@@ -40,5 +51,5 @@ export const api = {
       body: JSON.stringify({ trackIds }),
     }),
 
-  loginUrl: () => `${BASE}/api/auth/login`,
+  loginUrl: () => `http://localhost:3001/api/auth/login`,
 };

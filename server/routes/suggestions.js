@@ -6,7 +6,7 @@ import { loadProfile } from '../lib/profile.js';
 const router = Router();
 
 function requireAuth(req, res, next) {
-  if (!req.session?.spotifyTokens?.accessToken) {
+  if (!req.spotifyTokens?.accessToken) {
     return res.status(401).json({ error: 'Not authenticated with Spotify' });
   }
   next();

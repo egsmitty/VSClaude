@@ -14,7 +14,11 @@ export function AppProvider({ children }) {
   // Check auth on mount and after OAuth redirect
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('auth') === 'success' || params.get('error')) {
+    const token = params.get('token');
+    if (token) {
+      sessionStorage.setItem('authToken', token);
+      window.history.replaceState({}, '', '/');
+    } else if (params.get('error')) {
       window.history.replaceState({}, '', '/');
     }
     api.authStatus()
