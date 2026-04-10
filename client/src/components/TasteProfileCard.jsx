@@ -58,8 +58,12 @@ export default function TasteProfileCard() {
           <span className="stat-value">{profile.topGenre || '—'}</span>
         </div>
         <div className="stat-item">
-          <span className="stat-label">Genres Explored</span>
-          <span className="stat-value">{profile.genreCount ?? '—'}</span>
+          <span className="stat-label">Artists Listened</span>
+          <span className="stat-value">{profile.artistCount ?? '—'}</span>
+        </div>
+        <div className="stat-item">
+          <span className="stat-label">Songs Listened</span>
+          <span className="stat-value">{profile.songCount ?? '—'}</span>
         </div>
         <div className="stat-item">
           <span className="stat-label">Niche Score</span>

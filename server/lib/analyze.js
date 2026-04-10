@@ -44,10 +44,15 @@ function computeGenreCount(tracks) {
  * @param {Object|null} priorProfile - previously saved profile for evolution context
  */
 export async function analyzeTaste(recentTracks, overallTracks, priorProfile = null) {
+  const allTracks = [...recentTracks, ...overallTracks];
   const topArtist  = computeTopArtist(recentTracks) ?? computeTopArtist(overallTracks) ?? 'Unknown';
-  const genreCount = computeGenreCount([...recentTracks, ...overallTracks]);
+  const genreCount = computeGenreCount(allTracks);
 
-  const recentJson  = JSON.stringify(summarizeTracks(recentTracks),  null, 2);
+  // Unique artists and unique songs across both sets
+  const artistCount = new Set(allTracks.map((t) => t.artist).filter((a) => a && a !== 'Unknown')).size;
+  const songCount   = new Set(allTracks.map((t) => t.spotifyId).filter(Boolean)).size;
+
+  const recentJson  = JSON.stringify(summarizeTracks(recentTracks), null, 2);
   const overallJson = JSON.stringify(summarizeTracks(overallTracks), null, 2);
 
   const priorSection = priorProfile
@@ -115,5 +120,7 @@ Respond with ONLY valid JSON — no markdown, no explanation:
     ...result,
     topArtist,
     genreCount,
+    artistCount,
+    songCount,
   };
 }
