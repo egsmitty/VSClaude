@@ -1,9 +1,5 @@
 import { spotifyClient } from './spotify.js';
 
-/**
- * Normalizes a Spotify track object into our unified schema.
- * Genres come from the artist lookup — passed in separately.
- */
 function normalizeTrack(track, artistGenreMap = {}) {
   const artist = track.artists?.[0];
   return {
@@ -19,47 +15,49 @@ function normalizeTrack(track, artistGenreMap = {}) {
   };
 }
 
-/**
- * Fetches artist genre tags for a list of artist IDs.
- * Spotify allows up to 50 IDs per request.
- */
 async function fetchArtistGenres(client, artistIds) {
   const unique = [...new Set(artistIds)].filter(Boolean);
   const genreMap = {};
 
   for (let i = 0; i < unique.length; i += 50) {
     const batch = unique.slice(i, i + 50);
-    const { data } = await client.get('/artists', {
-      params: { ids: batch.join(',') },
-    });
-    for (const artist of data.artists ?? []) {
-      if (artist) genreMap[artist.id] = artist.genres ?? [];
+    try {
+      const { data } = await client.get('/artists', {
+        params: { ids: batch.join(',') },
+      });
+      for (const artist of data.artists ?? []) {
+        if (artist) genreMap[artist.id] = artist.genres ?? [];
+      }
+    } catch (err) {
+      console.error(`fetchArtistGenres batch failed (${err.response?.status ?? err.message}) — continuing without genres for this batch`);
     }
   }
 
   return genreMap;
 }
 
-/**
- * Fetches all Spotify data needed for taste analysis.
- * Returns a deduplicated, normalized array of tracks.
- */
 export async function fetchProfileData(req) {
   const client = await spotifyClient(req);
 
-  // Fetch in parallel: top tracks (3 windows) + recently played + saved tracks
-  // Use allSettled so a 403 on one endpoint doesn't kill the entire analysis
-  const [shortTerm, mediumTerm, longTerm, recentRes, savedRes] = await Promise.allSettled([
-    client.get('/me/top/tracks', { params: { limit: 50, time_range: 'short_term' } }),
-    client.get('/me/top/tracks', { params: { limit: 50, time_range: 'medium_term' } }),
-    client.get('/me/top/tracks', { params: { limit: 50, time_range: 'long_term' } }),
-    client.get('/me/player/recently-played', { params: { limit: 50 } }),
-    client.get('/me/tracks', { params: { limit: 50 } }),
-  ]);
+  const ENDPOINTS = [
+    ['short_term top tracks',   () => client.get('/me/top/tracks', { params: { limit: 50, time_range: 'short_term' } })],
+    ['medium_term top tracks',  () => client.get('/me/top/tracks', { params: { limit: 50, time_range: 'medium_term' } })],
+    ['long_term top tracks',    () => client.get('/me/top/tracks', { params: { limit: 50, time_range: 'long_term' } })],
+    ['recently played',         () => client.get('/me/player/recently-played', { params: { limit: 50 } })],
+    ['saved tracks',            () => client.get('/me/tracks', { params: { limit: 50 } })],
+  ];
 
+  const results = await Promise.allSettled(ENDPOINTS.map(([, fn]) => fn()));
+
+  results.forEach((r, i) => {
+    if (r.status === 'rejected') {
+      console.error(`Spotify endpoint "${ENDPOINTS[i][0]}" failed: ${r.reason?.response?.status ?? r.reason?.message}`);
+    }
+  });
+
+  const [shortTerm, mediumTerm, longTerm, recentRes, savedRes] = results;
   const ok = (r) => r.status === 'fulfilled' ? r.value.data.items ?? [] : [];
 
-  // Collect raw tracks, tagging source for dedup priority
   const rawTracks = [
     ...ok(shortTerm).map((t) => ({ track: t, source: 'top_short' })),
     ...ok(mediumTerm).map((t) => ({ track: t, source: 'top_medium' })),
@@ -68,7 +66,6 @@ export async function fetchProfileData(req) {
     ...ok(savedRes).map((item) => ({ track: item.track, source: 'saved' })),
   ];
 
-  // Deduplicate by spotifyId, keeping first occurrence (short-term has priority)
   const seen = new Set();
   const dedupedTracks = [];
   for (const { track } of rawTracks) {
@@ -78,7 +75,6 @@ export async function fetchProfileData(req) {
     }
   }
 
-  // Fetch genres for all unique artists
   const artistIds = dedupedTracks.map((t) => t.artists?.[0]?.id).filter(Boolean);
   const artistGenreMap = await fetchArtistGenres(client, artistIds);
 
