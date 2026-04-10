@@ -79,7 +79,7 @@ export default function TasteProfileCard() {
         <div className="niche-strip">
           <div className="niche-strip-score">
             <span className="niche-strip-title">Niche Score</span>
-            <span className="niche-big-num">{profile.nicheScore}</span>
+            <span className="niche-big-num">{profile.nicheScore}<span className="niche-big-unit">%</span></span>
             <span className="niche-big-label">{nicheLabel(profile.nicheScore)}</span>
           </div>
           <div className="niche-strip-divider" />

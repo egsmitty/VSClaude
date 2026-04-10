@@ -258,6 +258,13 @@ body {
   background-clip: text;
 }
 
+.niche-big-unit {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0;
+  vertical-align: super;
+}
+
 .niche-big-label {
   font-size: 10px;
   font-weight: 700;
