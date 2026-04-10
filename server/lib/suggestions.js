@@ -101,17 +101,20 @@ async function searchCandidates(client, tasteProfile, topTracks, listenedIds, us
         }
       }
 
-      // Only return early if genre searches actually produced candidates;
+      // Only return if we have candidates that survive all filters;
       // otherwise fall through to the profile fallback below
       if (candidates.length > 0) {
         let filtered = candidates.filter((t) => !listenedIds.has(t.id));
         if (nicheMode) filtered = filtered.filter((t) => (t.popularity ?? 100) < 30);
-        const artistCount = {};
-        return filtered.filter((t) => {
-          const artist = t.artists?.[0]?.name ?? 'Unknown';
-          artistCount[artist] = (artistCount[artist] || 0) + 1;
-          return artistCount[artist] <= 3;
-        });
+        if (filtered.length > 0) {
+          const artistCount = {};
+          return filtered.filter((t) => {
+            const artist = t.artists?.[0]?.name ?? 'Unknown';
+            artistCount[artist] = (artistCount[artist] || 0) + 1;
+            return artistCount[artist] <= 3;
+          });
+        }
+        // Niche filter removed everything — fall through to profile fallback
       }
     }
   }
@@ -139,8 +142,9 @@ async function searchCandidates(client, tasteProfile, topTracks, listenedIds, us
     }
   }
 
-  let filtered = candidates.filter((t) => !listenedIds.has(t.id));
-  if (nicheMode) filtered = filtered.filter((t) => (t.popularity ?? 100) < 30);
+  // Profile fallback is the last resort — never apply niche filter here or we
+  // risk returning empty when the profile genres don't overlap with niche music
+  const filtered = candidates.filter((t) => !listenedIds.has(t.id));
   const artistCount = {};
   return filtered.filter((t) => {
     const artist = t.artists?.[0]?.name ?? 'Unknown';
