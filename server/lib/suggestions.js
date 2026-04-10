@@ -115,7 +115,7 @@ ${JSON.stringify(candidates.map((t) => ({
 
 ## Instructions
 - Pick the single best match as "topPick" — the song you'd text a friend right now
-- "explanation": 2–3 sentences, written like a real recommendation. Be specific: name what about the production, lyrics, or vibe makes it perfect for this person. Don't be generic.
+- "explanation": 1 sentence max — punchy, specific, written like a text to a friend. Name one concrete thing (production, vibe, lyric) that makes it right. No filler.
 - Pick 3–4 solid alternatives as "runnersUp"
 - "reason" for each runner-up: one punchy sentence
 - "genreTag" for each: one short genre label

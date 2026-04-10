@@ -407,9 +407,9 @@ body {
 }
 
 .hero-explanation {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-muted);
-  line-height: 1.5;
+  line-height: 1.65;
   margin-top: 10px;
   border-top: 1px solid var(--border);
   padding-top: 10px;
