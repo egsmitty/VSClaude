@@ -36,10 +36,11 @@ export const api = {
 
   getProfile: () => request('/api/analyze/profile'),
 
-  getSuggestions: (userText) => {
-    const params = userText ? `?userText=${encodeURIComponent(userText)}` : '';
-    return request(`/api/suggestions${params}`);
-  },
+  getSuggestions: (userText, excludeIds = []) =>
+    request('/api/suggestions', {
+      method: 'POST',
+      body: JSON.stringify({ userText: userText || null, excludeIds }),
+    }),
 
   createPlaylist: (trackIds) =>
     request('/api/spotify/playlist', {

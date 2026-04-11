@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { api } from './api';
 
 const AppContext = createContext(null);
@@ -10,6 +10,8 @@ export function AppProvider({ children }) {
   const [runnersUp, setRunnersUp] = useState([]);
   const [lastPrompt, setLastPrompt] = useState(null);
   const [votes, setVotes] = useState({}); // { spotifyId: 'up' | 'down' }
+  const shownIdsRef   = useRef(new Set()); // tracks shown in current search session
+  const lastPromptRef = useRef(null);      // used to detect prompt changes without stale closure
   const [loading, setLoading] = useState({ auth: true, analyze: false, suggestions: false });
   const [error, setError] = useState(null);
 
@@ -59,8 +61,20 @@ export function AppProvider({ children }) {
   const fetchSuggestions = useCallback(async (userText) => {
     setLoading((l) => ({ ...l, suggestions: true }));
     setError(null);
+
+    // New prompt = new search session; clear exclusion history
+    if (userText !== lastPromptRef.current) {
+      shownIdsRef.current = new Set();
+    }
+    lastPromptRef.current = userText ?? null;
+
     try {
-      const { topPick, runnersUp } = await api.getSuggestions(userText);
+      const { topPick, runnersUp } = await api.getSuggestions(userText, [...shownIdsRef.current]);
+
+      // Record every shown ID so future Try Again calls exclude them
+      if (topPick?.spotifyId) shownIdsRef.current.add(topPick.spotifyId);
+      (runnersUp ?? []).forEach((r) => { if (r.spotifyId) shownIdsRef.current.add(r.spotifyId); });
+
       setTopPick(topPick ?? null);
       setRunnersUp(runnersUp ?? []);
       setLastPrompt(userText ?? null);

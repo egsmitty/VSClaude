@@ -153,20 +153,21 @@ async function searchCandidates(client, tasteProfile, topTracks, listenedIds, us
   });
 }
 
-export async function fetchCandidates(req, topTracks, tasteProfile, userPrompt = null) {
+export async function fetchCandidates(req, topTracks, tasteProfile, userPrompt = null, excludedIds = new Set()) {
   const client = await spotifyClient(req);
 
   if (topTracks.length === 0) throw new Error('No listening history available for recommendations');
 
-  // Build a set of already-listened track IDs so we can exclude them from candidates
+  // listenedIds = user's own library (soft exclusion — relaxed in fallback)
+  // excludedIds = already shown by the app this session (hard exclusion — never relaxed)
   const listenedIds = new Set(topTracks.map((t) => t.spotifyId).filter(Boolean));
+  const allExcluded = new Set([...listenedIds, ...excludedIds]);
 
-  let rawTracks = await searchCandidates(client, tasteProfile, topTracks, listenedIds, userPrompt);
+  let rawTracks = await searchCandidates(client, tasteProfile, topTracks, allExcluded, userPrompt);
 
-  // If filtering listened tracks left us with too few candidates, fall back to the
-  // unfiltered pool so we always have something for Claude to work with
+  // Fallback: relax the library exclusion but keep the hard session exclusion intact
   if (rawTracks.length < 5) {
-    rawTracks = await searchCandidates(client, tasteProfile, topTracks, new Set(), userPrompt);
+    rawTracks = await searchCandidates(client, tasteProfile, topTracks, excludedIds, userPrompt);
   }
 
   if (rawTracks.length === 0) throw new Error('No recommendation candidates found');

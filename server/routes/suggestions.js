@@ -12,10 +12,11 @@ function requireAuth(req, res, next) {
   next();
 }
 
-// GET /api/suggestions
-// Query params (optional): ?userText=feeling+melancholy+today
-router.get('/', requireAuth, async (req, res) => {
-  const { userText } = req.query;
+// POST /api/suggestions
+// Body (optional): { userText: string, excludeIds: string[] }
+router.post('/', requireAuth, async (req, res) => {
+  const { userText, excludeIds } = req.body ?? {};
+  const excludedIds = new Set(Array.isArray(excludeIds) ? excludeIds : []);
 
   try {
     // Load taste profile — must exist before suggestions make sense
@@ -28,7 +29,7 @@ router.get('/', requireAuth, async (req, res) => {
 
     // Fetch user's top tracks (needed for seeding) and recommendation candidates
     const topTracks = await fetchProfileData(req);
-    const candidates = (await fetchCandidates(req, topTracks, tasteProfile, userText || null)).slice(0, 20);
+    const candidates = (await fetchCandidates(req, topTracks, tasteProfile, userText || null, excludedIds)).slice(0, 20);
 
     // Let Claude rank and annotate
     const { topPick, runnersUp } = await rankCandidates(candidates, tasteProfile, userText || null);
