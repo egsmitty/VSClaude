@@ -23,8 +23,8 @@ export default function TasteProfileCard() {
   if (!profile) {
     return (
       <div className="card profile-card empty-card">
-        <h2>Your Weekly Recap</h2>
-        <p>See how your listening has shifted this week vs. your all-time taste.</p>
+        <h2>Your Taste Recap</h2>
+        <p>See how your listening has shifted over the past 7 days vs. your all-time taste.</p>
         <button className="btn btn-primary" onClick={() => runAnalysis()}>
           Analyze My Taste
         </button>
@@ -32,14 +32,18 @@ export default function TasteProfileCard() {
     );
   }
 
+  const updatedDate = profile.updatedAt ? new Date(profile.updatedAt) : null;
+  const weekStart   = updatedDate ? new Date(+updatedDate - 7 * 24 * 60 * 60 * 1000) : null;
+  const fmtShort    = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
   return (
     <div className="card profile-card">
       <div className="profile-header">
         <div>
-          <h2>Weekly Recap</h2>
-          {profile.updatedAt && (
+          <h2>Taste Recap</h2>
+          {updatedDate && (
             <span className="updated-at">
-              Updated {new Date(profile.updatedAt).toLocaleDateString()}
+              {fmtShort(weekStart)} – {fmtShort(updatedDate)} · Updated {updatedDate.toLocaleDateString()}
             </span>
           )}
         </div>

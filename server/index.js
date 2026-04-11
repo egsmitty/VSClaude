@@ -1,6 +1,5 @@
 import 'dotenv/config';
 import express from 'express';
-import session from 'express-session';
 import axios from 'axios';
 import authRouter from './routes/auth.js';
 import spotifyRouter from './routes/spotify.js';
@@ -13,18 +12,6 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 app.use(express.json());
-
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET || 'dev-secret',
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: 1000 * 60 * 60 * 24, // 24 hours
-    },
-  })
-);
 
 // CORS for local dev
 app.use((req, res, next) => {

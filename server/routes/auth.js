@@ -72,7 +72,7 @@ router.get('/callback', async (req, res) => {
 });
 
 // Logout
-router.get('/logout', (req, res) => {
+router.post('/logout', (req, res) => {
   const clientToken = req.headers['x-auth-token'];
   if (clientToken) deleteTokens(clientToken);
   res.json({ ok: true });

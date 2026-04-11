@@ -103,31 +103,34 @@ export async function fetchProfileData(req) {
 export async function fetchTrackSets(req) {
   const client = await spotifyClient(req);
 
-  const [shortTermRes, longTermRes] = await Promise.allSettled([
-    client.get('/me/top/tracks', { params: { limit: 50, time_range: 'short_term' } }),
+  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+
+  const [recentRes, longTermRes] = await Promise.allSettled([
+    client.get('/me/player/recently-played', { params: { limit: 50, after: sevenDaysAgo } }),
     client.get('/me/top/tracks', { params: { limit: 50, time_range: 'long_term' } }),
   ]);
 
-  if (shortTermRes.status === 'rejected') {
-    console.error(`short_term fetch failed: ${shortTermRes.reason?.response?.status ?? shortTermRes.reason?.message}`);
+  if (recentRes.status === 'rejected') {
+    console.error(`recently-played fetch failed: ${recentRes.reason?.response?.status ?? recentRes.reason?.message}`);
   }
   if (longTermRes.status === 'rejected') {
     console.error(`long_term fetch failed: ${longTermRes.reason?.response?.status ?? longTermRes.reason?.message}`);
   }
 
-  const shortItems = shortTermRes.status === 'fulfilled' ? shortTermRes.value.data.items ?? [] : [];
-  const longItems  = longTermRes.status === 'fulfilled'  ? longTermRes.value.data.items  ?? [] : [];
+  // recently-played items are already { track, played_at } — matches dedupeAndNormalize shape
+  const recentItems = recentRes.status === 'fulfilled' ? recentRes.value.data.items ?? [] : [];
+  const longItems   = longTermRes.status === 'fulfilled' ? longTermRes.value.data.items ?? [] : [];
 
   // Collect all unique artist IDs across both sets for genre lookup
   const allArtistIds = [
-    ...shortItems.map((t) => t.artists?.[0]?.id),
+    ...recentItems.map((item) => item.track?.artists?.[0]?.id),
     ...longItems.map((t) => t.artists?.[0]?.id),
   ].filter(Boolean);
 
   const artistGenreMap = await fetchArtistGenres(client, allArtistIds);
 
-  const recentTracks  = dedupeAndNormalize(shortItems.map((t) => ({ track: t })), artistGenreMap);
-  const overallTracks = dedupeAndNormalize(longItems.map((t) => ({ track: t })),  artistGenreMap);
+  const recentTracks  = dedupeAndNormalize(recentItems, artistGenreMap);
+  const overallTracks = dedupeAndNormalize(longItems.map((t) => ({ track: t })), artistGenreMap);
 
   return { recentTracks, overallTracks };
 }

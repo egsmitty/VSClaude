@@ -1,4 +1,4 @@
-import { readFile, writeFile } from 'fs/promises';
+import { readFile, writeFile, mkdir } from 'fs/promises';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -15,7 +15,6 @@ export async function loadProfile() {
 }
 
 export async function saveProfile(profile) {
-  const { mkdir } = await import('fs/promises');
   await mkdir(join(__dirname, '../../data'), { recursive: true });
   await writeFile(PROFILE_PATH, JSON.stringify({ ...profile, updatedAt: new Date().toISOString() }, null, 2));
 }

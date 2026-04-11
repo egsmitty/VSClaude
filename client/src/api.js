@@ -25,7 +25,7 @@ export const api = {
   authStatus: () => request('/api/auth/status'),
   logout: () => {
     sessionStorage.removeItem('authToken');
-    return request('/api/auth/logout');
+    return request('/api/auth/logout', { method: 'POST' });
   },
 
   analyze: (userText) =>
@@ -41,17 +41,11 @@ export const api = {
     return request(`/api/suggestions${params}`);
   },
 
-  submitFeedback: (spotifyId, vote) =>
-    request('/api/feedback', {
-      method: 'POST',
-      body: JSON.stringify({ spotifyId, vote }),
-    }),
-
   createPlaylist: (trackIds) =>
     request('/api/spotify/playlist', {
       method: 'POST',
       body: JSON.stringify({ trackIds }),
     }),
 
-  loginUrl: () => `http://localhost:3001/api/auth/login`,
+  loginUrl: () => `${BASE}/api/auth/login`,
 };

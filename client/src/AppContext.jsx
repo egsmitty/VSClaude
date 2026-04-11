@@ -71,16 +71,12 @@ export function AppProvider({ children }) {
     }
   }, []);
 
-  const vote = useCallback(async (spotifyId, direction) => {
-    const prev = votes[spotifyId];
-    const next = prev === direction ? null : direction; // toggle off
-    setVotes((v) => ({ ...v, [spotifyId]: next }));
-    try {
-      await api.submitFeedback(spotifyId, next);
-    } catch {
-      // Feedback endpoint may not exist yet — fail silently in UI
-    }
-  }, [votes]);
+  const vote = useCallback((spotifyId, direction) => {
+    setVotes((prev) => {
+      const next = prev[spotifyId] === direction ? null : direction;
+      return { ...prev, [spotifyId]: next };
+    });
+  }, []);
 
   const logout = useCallback(async () => {
     await api.logout();

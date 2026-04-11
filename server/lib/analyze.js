@@ -39,7 +39,7 @@ function computeGenreCount(tracks) {
  * Analyzes the user's music taste by comparing recent vs all-time listening.
  * Returns a structured profile including weekly shift blurb.
  *
- * @param {Array} recentTracks  - short_term top tracks (~last 4 weeks)
+ * @param {Array} recentTracks  - recently-played tracks from the last 7 days
  * @param {Array} overallTracks - long_term top tracks (all-time)
  * @param {Object|null} priorProfile - previously saved profile for evolution context
  */
@@ -52,17 +52,19 @@ export async function analyzeTaste(recentTracks, overallTracks, priorProfile = n
   const artistCount = new Set(allTracks.map((t) => t.artist).filter((a) => a && a !== 'Unknown')).size;
   const songCount   = new Set(allTracks.map((t) => t.spotifyId).filter(Boolean)).size;
 
-  const recentJson  = JSON.stringify(summarizeTracks(recentTracks), null, 2);
+  const recentJson  = recentTracks.length > 0
+    ? JSON.stringify(summarizeTracks(recentTracks), null, 2)
+    : '(no plays in the last 7 days — base the recap and shift on all-time data only)';
   const overallJson = JSON.stringify(summarizeTracks(overallTracks), null, 2);
 
   const priorSection = priorProfile
     ? `\n## Prior Profile (last analysis)\n${JSON.stringify(priorProfile, null, 2)}\nNote any meaningful evolution.\n`
     : '';
 
-  const prompt = `You are a music taste analyst giving a listener their weekly recap. Compare their recent listening (last ~4 weeks) against their all-time listening to surface what's shifted.
+  const prompt = `You are a music taste analyst giving a listener their taste recap. Compare their recent listening (last 7 days) against their all-time listening to surface what's shifted.
 
 ${priorSection}
-## Recent Listening (last 4 weeks)
+## Recent Listening (last 7 days)
 ${recentJson}
 
 ## All-Time Listening
@@ -74,11 +76,11 @@ ${overallJson}
 
 ## Instructions
 - "topGenre": the single genre that dominates their overall taste (pick the most recurring, be specific not generic — e.g. "melodic rap" not "rap")
-- "nicheScore": 0–100 (100 = extremely underground). Invert average popularity of recent tracks. Be honest.
+- "nicheScore": 0–100 (100 = extremely underground). Invert average popularity — use recent tracks if available, otherwise overall tracks. Be honest.
 - "nicheExplanation": one sentence explaining what the niche score means for this specific person — name an artist or genre that illustrates it
 - "subgenre": one hyper-specific scene label (e.g. "hypnagogic pop", "post-bop jazz", "bedroom pop")
 - "tasteSummary": 2–3 punchy sentences about their overall taste — be specific, mention real artists/scenes
-- "weeklyShift": one sentence on what's different this week vs their all-time — only if there's a real difference. If it's identical, say what they're consistently loyal to. Be conversational, not clinical.
+- "weeklyShift": one sentence on what's different this week (last 7 days) vs their all-time — only if there's a real difference. If it's identical, say what they're consistently loyal to. Be conversational, not clinical.
 
 ## Output Format
 Respond with ONLY valid JSON — no markdown, no explanation:
